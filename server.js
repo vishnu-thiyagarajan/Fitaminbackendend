@@ -18,7 +18,7 @@ app.use(session({
     saveUninitialized: false
 }))
 app.use(express.urlencoded({ extended: false }));
-
+app.use('/api', require('./controls/role'))
 app.use('/api', require('./controls/user'))
 
 app.listen(process.env.APP_PORT)

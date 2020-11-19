@@ -9,7 +9,7 @@ const init = require('../passport');
 
 async function getUserByEmail(email){
   try {
-    const user = await UserModel.findOne({ email: email }).exec()
+    const user = await UserModel.findOne({ email: email }).populate('role').exec()
     return user
   } catch (error) {
     return null
@@ -18,7 +18,7 @@ async function getUserByEmail(email){
 
 async function getUserById(id){
   try {
-      const user = await UserModel.findOne({ _id: id }).exec()
+      const user = await UserModel.findOne({ _id: id }).populate('role').exec()
       return user
   } catch (error) {
     return null
@@ -45,19 +45,24 @@ router.post('/login', function(req, res, next) {
 })
 
 router.post('/register', async (req, res)=>{
+  console.log(req.body)
   try {
       const hassedPswd = await bcrypt.hash(req.body.password, 10)
       const user = new UserModel()
       user.email = req.body.email
       user.name = req.body.name
       user.password = hassedPswd
+      user.role = req.body.role._id
       user.createdAt = new Date().toISOString()
       if (await getUserByEmail(req.body.email)) {
         return res.status(403).send({ message: 'User with emailid already exists' })
       }
       user.save((err, docs) => {
         if (err) throw err
-        res.status(201).send(docs)
+        const resObj = docs.toObject()
+        resObj.role = req.body.role
+        console.log(resObj)
+        res.status(201).send(resObj)
       })
     } catch (err) {
       res.status(500).send({ message: 'server side error' })
