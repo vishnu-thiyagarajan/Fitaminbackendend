@@ -45,7 +45,6 @@ router.post('/login', function(req, res, next) {
 })
 
 router.post('/register', async (req, res)=>{
-  console.log(req.body)
   try {
       const hassedPswd = await bcrypt.hash(req.body.password, 10)
       const user = new UserModel()
@@ -61,7 +60,6 @@ router.post('/register', async (req, res)=>{
         if (err) throw err
         const resObj = docs.toObject()
         resObj.role = req.body.role
-        console.log(resObj)
         res.status(201).send(resObj)
       })
     } catch (err) {
@@ -69,6 +67,32 @@ router.post('/register', async (req, res)=>{
     }
 })
 
+router.get('/allusers', async (req, res)=>{
+  try {
+      const users = await UserModel.find({}).populate('role').exec();
+      res.send(users);
+    } catch (err) {
+      res.status(500).send({ message: 'server side error' })
+    }
+})
+
+router.put('/user', async (req, res)=>{
+  try {
+      const user = await UserModel.findOneAndUpdate({ email: req.body.email }, { name: req.body.name, role: req.body.role._id}, { new: true})
+      res.status(200).send({ message: 'Updated Successfully' });
+    } catch (err) {
+      res.status(500).send({ message: 'server side error' })
+    }
+})
+
+router.delete('/user', async (req, res)=>{
+  try {
+      const user = await UserModel.findByIdAndDelete(req.body._id.trim())
+      res.status(200).send({ message: 'Deleted Successfully' });
+    } catch (err) {
+      res.status(500).send({ message: 'server side error' })
+    }
+})
 // function auth(req, res, next){
 //     if(req.isAuthenticated()){
 //         return next()
