@@ -1,73 +1,13 @@
 require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
-const bcrypt = require('bcrypt')
 const UserModel = mongoose.model('Users')
 const router = express.Router()
 const passport = require('passport');
-const init = require('../passport');
+const jwt = require('jsonwebtoken');
+require('../passport');
 
-async function getUserByEmail(email){
-  try {
-    const user = await UserModel.findOne({ email: email }).populate('role').exec()
-    return user
-  } catch (error) {
-    return null
-  }
-}
-
-async function getUserById(id){
-  try {
-      const user = await UserModel.findOne({ _id: id }).populate('role').exec()
-      return user
-  } catch (error) {
-    return null
-  }
-}
-
-init(passport, 
-  getUserByEmail,
-  getUserById
-  )
-router.use(passport.initialize())
-router.use(passport.session())
-router.post('/login', function(req, res, next) {
-  passport.authenticate('local',function(err, user, info) {
-    if (err) { return next(err) }
-    if (!user) {
-      return res.status(400).send({ message: info.message })
-    }
-    req.logIn(user, function(err) {
-      if (err) { return next(err); }
-      return res.status(201).send(req.user);
-    });
-  })(req, res, next)
-})
-
-router.post('/register', async (req, res)=>{
-  try {
-      const hassedPswd = await bcrypt.hash(req.body.password, 10)
-      const user = new UserModel()
-      user.email = req.body.email
-      user.name = req.body.name
-      user.password = hassedPswd
-      user.role = req.body.role._id
-      user.createdAt = new Date().toISOString()
-      if (await getUserByEmail(req.body.email)) {
-        return res.status(403).send({ message: 'User with emailid already exists' })
-      }
-      user.save((err, docs) => {
-        if (err) throw err
-        const resObj = docs.toObject()
-        resObj.role = req.body.role
-        res.status(201).send(resObj)
-      })
-    } catch (err) {
-      res.status(500).send({ message: 'server side error' })
-    }
-})
-
-router.get('/allusers', async (req, res)=>{
+router.get('/allusers', passport.authenticate('jwt', { session: false }), async (req, res)=>{
   try {
       const users = await UserModel.find({}).populate('role').exec();
       res.send(users);
@@ -76,7 +16,7 @@ router.get('/allusers', async (req, res)=>{
     }
 })
 
-router.put('/user', async (req, res)=>{
+router.put('/user', passport.authenticate('jwt', { session: false }), async (req, res)=>{
   try {
       const user = await UserModel.findOneAndUpdate({ email: req.body.email }, { name: req.body.name, role: req.body.role._id}, { new: true})
       res.status(200).send({ message: 'Updated Successfully' });
@@ -85,7 +25,7 @@ router.put('/user', async (req, res)=>{
     }
 })
 
-router.delete('/user', async (req, res)=>{
+router.delete('/user', passport.authenticate('jwt', { session: false }), async (req, res)=>{
   try {
       const user = await UserModel.findByIdAndDelete(req.body._id.trim())
       res.status(200).send({ message: 'Deleted Successfully' });
@@ -93,18 +33,45 @@ router.delete('/user', async (req, res)=>{
       res.status(500).send({ message: 'server side error' })
     }
 })
-// function auth(req, res, next){
-//     if(req.isAuthenticated()){
-//         return next()
-//     }
-//     res.redirect('/login')
-// }
 
-// function notAuth(req, res, next) {
-//     if (req.isAuthenticated()) {
-//       return res.redirect('/')
-//     }
-//     next()
-// }
+router.post(
+  '/signup',
+  passport.authenticate('signup', { session: false }),
+  async (req, res, next) => {
+    res.json(req.user);
+  }
+);
+
+router.post(
+  '/login',
+  async (req, res, next) => {
+    passport.authenticate(
+      'login',
+      async (err, user, info) => {
+        try {
+          if (err || !user) {
+            const error = new Error('An error occurred.');
+
+            return next(error);
+          }
+
+          req.login(
+            user,
+            { session: false },
+            async (error) => {
+              if (error) return next(error);
+              const body = { _id: user._id, name: user.name, email: user.email, role: user.role };
+              const token = jwt.sign({ user: body }, 'TOP_SECRET');
+
+              return res.json({ ...body, token });
+            }
+          );
+        } catch (error) {
+          return next(error);
+        }
+      }
+    )(req, res, next);
+  }
+);
 
 module.exports = router
