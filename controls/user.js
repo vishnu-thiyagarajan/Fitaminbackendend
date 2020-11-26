@@ -5,7 +5,56 @@ const UserModel = mongoose.model('Users')
 const router = express.Router()
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+
 require('../passport');
+
+var transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_ID,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
+
+var mailOptions = {
+  from: process.env.EMAIL_ID,
+  subject: 'New Password from SITS',
+};
+
+router.put('/forgotpassword', async (req, res)=>{
+  try {
+      const newpassword = Math.random().toString(36).slice(3)
+      const user = await UserModel.findOne({ email : req.body.email })
+      if (!user) return res.status(400).send({ message: 'No User with that email' })
+      mailOptions.text = 'Your new password is '+ newpassword
+      mailOptions.to = user.email
+      transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+          return res.status(500).send({ message: 'We could not send mail as of now : '+ error });
+        }
+        user.password = newpassword
+        user.save()
+        return res.status(200).send({ message: 'new password sent successfully' })
+      });
+    } catch (err) {
+      return res.status(500).send({ message: 'server side error' })
+    }
+})
+
+router.put('/resetpassword', passport.authenticate('jwt', { session: false }), async (req, res)=>{
+  try {
+      const user = await UserModel.findOne({ email : req.user.email })
+      if (user.isValidPassword(req.body.oldpassword)) {
+        user.password = req.body.newpassword
+        user.save()
+        return res.status(200).send({ message: 'password changed successfully' })
+      }
+      return res.status(400).send({ message: 'wrong old password' });
+    } catch (err) {
+      res.status(500).send({ message: 'server side error' })
+    }
+})
 
 router.get('/allusers', passport.authenticate('jwt', { session: false }), async (req, res)=>{
   try {
@@ -35,7 +84,7 @@ router.delete('/user', passport.authenticate('jwt', { session: false }), async (
 })
 
 router.post(
-  '/signup',
+  '/register',
   passport.authenticate('signup', { session: false }),
   async (req, res, next) => {
     res.json(req.user);
@@ -49,10 +98,12 @@ router.post(
       'login',
       async (err, user, info) => {
         try {
-          if (err || !user) {
+          if (err) {
             const error = new Error('An error occurred.');
-
             return next(error);
+          }
+          if (!user) {
+            return res.status(300).send(info);
           }
 
           req.login(
