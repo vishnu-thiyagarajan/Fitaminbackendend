@@ -5,6 +5,7 @@ const usersSchema = new Schema({
   name: { type: String, required: true },
   email: { type: String, unique: true, required: true },
   password: { type: String, required: true },
+  active: { type: Boolean, required: true, default: false},
   role: { type: Schema.Types.ObjectId, ref: 'Roles', required: true },
 }, { timestamps: true })
 usersSchema.pre(

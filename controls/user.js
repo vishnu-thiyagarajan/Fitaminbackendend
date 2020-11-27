@@ -56,6 +56,24 @@ router.put('/resetpassword', passport.authenticate('jwt', { session: false }), a
     }
 })
 
+router.put('/activate',(req, res)=>{
+  try {
+      const {token} = req.body
+      jwt.verify(token, process.env.JWT_ACC_ACTIVATE,async function(err, decodedtoken){
+        if(err) return res.status(400).send({message: 'incorrect link to activate account'})
+        const { user } = decodedtoken
+        const userfound = await UserModel.findOne({ email : user.email }).populate('role').exec();
+        if(!userfound) return res.status(400).send({message: 'incorrect link to activate account'})
+        if(user.active) return res.status(400).send({message: 'Already your account is activated'})
+        userfound.active = true
+        userfound.save()
+        return res.status(200).send({... userfound._doc, token})
+      })
+    } catch (err) {
+      res.status(500).send({ message: 'server side error' })
+    }
+})
+
 router.get('/allusers', passport.authenticate('jwt', { session: false }), async (req, res)=>{
   try {
       const users = await UserModel.find({}).populate('role').exec();
@@ -87,7 +105,14 @@ router.post(
   '/register',
   passport.authenticate('signup', { session: false }),
   async (req, res, next) => {
-    res.json(req.user);
+    res.status(200).send({ message : 'Please activate your account from your email'})
+  }
+);
+router.post(
+  '/createuser',
+  passport.authenticate('signup', { session: false }),
+  async (req, res, next) => {
+    res.status(200).send(req.user)
   }
 );
 
@@ -111,8 +136,8 @@ router.post(
             { session: false },
             async (error) => {
               if (error) return next(error);
-              const body = { _id: user._id, name: user.name, email: user.email, role: user.role };
-              const token = jwt.sign({ user: body }, 'TOP_SECRET');
+              const body = { name: user.name, email: user.email, role: user.role };
+              const token = jwt.sign({ user: body }, process.env.JWT_ACC_ACTIVATE);
 
               return res.json({ ...body, token });
             }

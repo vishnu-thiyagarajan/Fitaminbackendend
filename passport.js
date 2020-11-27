@@ -1,10 +1,24 @@
 const localStrategy = require('passport-local').Strategy;
-// const bcrypt = require('bcrypt');
+require('dotenv').config()
 const JWTstrategy = require('passport-jwt').Strategy;
 const ExtractJWT = require('passport-jwt').ExtractJwt;
 const passport = require('passport');
 const UserModel = require('./models/user.model');
+const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
 
+var transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_ID,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
+
+var mailOptions = {
+  from: process.env.EMAIL_ID,
+  subject: 'Account activation link',
+};
 
 passport.use(
     'signup',
@@ -16,9 +30,18 @@ passport.use(
       },
       async (req, email, password, done) => {
         try {
+          const userfound = await UserModel.findOne({ email })
+          if (userfound) return done('User already registered')
+          const token = jwt.sign({ user: {name: req.body.name, email, role: req.body.role._id} }, process.env.JWT_ACC_ACTIVATE);
+          mailOptions.html = `<h2>Please click the link below to activate</h2><br/>
+          <a href='${process.env.CLIENT_URL}/auth/activate/${token}'>${process.env.CLIENT_URL}/auth/activate/${token}</a>`
+          mailOptions.to = email
+          const info = await transporter.sendMail(mailOptions)
+          if (!info.messageId) return done('We could not send account activation mail as of now.')
           const user = await UserModel.create({ name: req.body.name, email, password, role: req.body.role._id });
           const resObj = user.toObject();
           resObj.role = req.body.role
+          resObj.token = token
           return done(null, resObj);
         } catch (error) {
           done(error);
@@ -44,7 +67,7 @@ passport.use(
             return done(null, false, { message: 'User not found' });
           }
   
-          const validate = await user.isValidPassword(password);
+          const validate = await user.isValidPassword(password );
   
           if (!validate) {
             return done(null, false, { message: 'Wrong Password' });
@@ -61,7 +84,7 @@ passport.use(
 passport.use(
     new JWTstrategy(
       {
-        secretOrKey: 'TOP_SECRET',
+        secretOrKey: process.env.JWT_ACC_ACTIVATE,
         jwtFromRequest: ExtractJWT.fromAuthHeaderAsBearerToken()
       },
       async (token, done) => {
