@@ -64,9 +64,10 @@ router.put('/activate',(req, res)=>{
         const { user } = decodedtoken
         const userfound = await UserModel.findOne({ email : user.email }).populate('role').exec();
         if(!userfound) return res.status(400).send({message: 'incorrect link to activate account'})
-        if(user.active) return res.status(400).send({message: 'Already your account is activated'})
-        userfound.active = true
-        userfound.save()
+        if(userfound.active) return res.status(400).send({message: 'Already your account is activated'})
+        // userfound.active = true
+        // userfound.save()
+        await UserModel.findOneAndUpdate({ email : user.email }, {active: true});
         return res.status(200).send({... userfound._doc, token})
       })
     } catch (err) {

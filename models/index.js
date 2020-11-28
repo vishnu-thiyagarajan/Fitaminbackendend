@@ -6,7 +6,7 @@ require('./user.model.js')
 const dbURI = process.env.MONGODB_URI;
 
 module.exports = function () {
-  mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true, useCreateIndex: true })
+  mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true, useCreateIndex: true, useFindAndModify: false })
 
   mongoose.connection.on('connected', function () {
     console.log('Mongoose default connection is open')
