@@ -31,13 +31,13 @@ passport.use(
       async (req, email, password, done) => {
         try {
           const userfound = await UserModel.findOne({ email })
-          if (userfound) return done('User already registered')
+          if (userfound) return done(null, null, 'User already registered')
           const token = jwt.sign({ user: {name: req.body.name, email, role: req.body.role._id} }, process.env.JWT_ACC_ACTIVATE);
           mailOptions.html = `<h2>Please click the link below to activate</h2><br/>
           <a href='${process.env.CLIENT_URL}/auth/activate/${token}'>${process.env.CLIENT_URL}/auth/activate/${token}</a>`
           mailOptions.to = email
           const info = await transporter.sendMail(mailOptions)
-          if (!info.messageId) return done('We could not send account activation mail as of now.')
+          if (!info.messageId) return done(null, null, 'We could not send account activation mail as of now.')
           const user = await UserModel.create({ name: req.body.name, email, password, role: req.body.role._id });
           const resObj = user.toObject();
           resObj.role = req.body.role

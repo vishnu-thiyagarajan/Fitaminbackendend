@@ -45,12 +45,12 @@ router.put('/forgotpassword', async (req, res)=>{
 router.put('/resetpassword', passport.authenticate('jwt', { session: false }), async (req, res)=>{
   try {
       const user = await UserModel.findOne({ email : req.user.email })
-      if (user.isValidPassword(req.body.oldpassword)) {
+      if (await user.isValidPassword(req.body.oldpassword)) {
         user.password = req.body.newpassword
         user.save()
         return res.status(200).send({ message: 'password changed successfully' })
       }
-      return res.status(400).send({ message: 'wrong old password' });
+      return res.status(300).send({ message: 'wrong old password' });
     } catch (err) {
       res.status(500).send({ message: 'server side error' })
     }
@@ -65,8 +65,6 @@ router.put('/activate',(req, res)=>{
         const userfound = await UserModel.findOne({ email : user.email }).populate('role').exec();
         if(!userfound) return res.status(400).send({message: 'incorrect link to activate account'})
         if(userfound.active) return res.status(400).send({message: 'Already your account is activated'})
-        // userfound.active = true
-        // userfound.save()
         await UserModel.findOneAndUpdate({ email : user.email }, {active: true});
         return res.status(200).send({... userfound._doc, token})
       })
@@ -104,24 +102,31 @@ router.delete('/user', passport.authenticate('jwt', { session: false }), async (
 
 router.post(
   '/register',
-  passport.authenticate('signup', { session: false }),
   async (req, res, next) => {
+    passport.authenticate('signup',
+    async (err, user, info) => {
+    if (err) return res.status(500).send({ message : err })
+    if (!user || info) return res.status(300).send({ message : info })
     res.status(200).send({ message : 'Please activate your account from your email'})
+    })(req, res, next);
   }
 );
 router.post(
   '/createuser',
-  passport.authenticate('signup', { session: false }),
   async (req, res, next) => {
-    res.status(200).send(req.user)
+    passport.authenticate('signup',
+    async (err, user, info) => {
+    if (err) return res.status(500).send({ message : err })
+    if (!user || info) return res.status(300).send({ message : info })
+    res.status(200).send(user)
+    })(req, res, next);
   }
 );
 
 router.post(
   '/login',
   async (req, res, next) => {
-    passport.authenticate(
-      'login',
+    passport.authenticate('login',
       async (err, user, info) => {
         try {
           if (err) {
