@@ -19,7 +19,7 @@ var transporter = nodemailer.createTransport({
 
 var mailOptions = {
   from: process.env.EMAIL_ID,
-  subject: 'New Password from SITS',
+  subject: 'New Password from Casafoods',
 };
 
 router.put('/forgotpassword', async (req, res)=>{

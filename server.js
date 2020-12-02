@@ -20,5 +20,7 @@ app.use(session({
 app.use(express.urlencoded({ extended: false }));
 app.use('/api', require('./controls/role'))
 app.use('/api', require('./controls/user'))
+app.use('/api/recipe', require('./controls/core'))
+app.use('/api/custom', require('./controls/customize'))
 
 app.listen(process.env.APP_PORT)
