@@ -6,18 +6,17 @@ const passport = require('passport');
 
 router.post('/', passport.authenticate('jwt', { session: false }), async (req, res)=>{
     try {
+        const found = await CoreModel.findOne({ name : req.body.name })
+        if (found) return res.status(400).send({ message: 'recipe name already taken' })
         const core = new CoreModel()
         core.name = req.body.name
         core.recipe = req.body.recipe
         core.nutrition = req.body.nutrition
         core.save((err, docs) => {
           if (err) throw err
-          res.status(201).send({ ...docs, message : 'core added' })
+          res.status(201).send({ ...docs._doc, message : 'core added' })
         })
       } catch (error) {
-        if (error.name === 'MongoError' && error.code === 11000) {
-          return res.status(100).send({ message: 'recipe name already taken' })
-        }
         return res.status(500).send({ message: 'server side error' })
       }
   })

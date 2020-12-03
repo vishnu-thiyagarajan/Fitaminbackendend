@@ -6,13 +6,11 @@ const passport = require('passport');
 
 router.post('/', passport.authenticate('jwt', { session: false }), async (req, res)=>{
     try {
-        const corerecipe = req.body.corerecipe
+        const corerecipe = req.body.coreid
         const wantsto = req.body.wantsto
         const weight = req.body.weight
-        const obj = await CustomizeModel.find({ corerecipe, wantsto, weight });
-        if (obj._id) {
-            return res.status(400).send({ message: 'recipe customized already' })
-        }
+        const obj = await CustomizeModel.findOne({ corerecipe, wantsto, weight });
+        if (obj) return res.status(400).send({ message: 'recipe customized already' })
         const custom = new CustomizeModel()
         custom.corerecipe = corerecipe
         custom.wantsto = wantsto
